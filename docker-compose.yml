@@ -1,0 +1,41 @@
+version: '3.0'
+services:
+  ftpserver:
+    build: .
+    container_name: kontext-ftp-server
+    image: greicodex/kontext-ftp-server
+    depends_on:
+      - database
+      - fakes3
+    expose:
+      - 2121
+    environment:
+      - SITE=ftp.greicodex.com
+      - S3_BUCKET=fake_s3
+      - S3_ACCESS_KEY_ID=s3_accessid
+      - S3_SECRET_ACCESS_KEY=s3_accesskey
+      - S3_URL=https://fakes3
+      - DB_USER=db_username
+      - DB_PASSWD=db_password
+      - DB_NAME=ftpserver
+      - DB_HOST=database
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse
+
+  fakes3:
+    image: fingershock/fakes3
+    volumes:
+      - ./s3_data:/fakes3_data:rw
+
+  database:
+    image: mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=toor
+      - MYSQL_DATABASE=ftpserver
+      - MYSQL_USER=db_username
+      - MYSQL_PASSWORD=db_password
+    volumes:
+      - ./pam-mysql/users.sql:/docker-entrypoint-initdb.d/01_users.sql
+      - ./pam-mysql/log.sql:/docker-entrypoint-initdb.d/02_log.sql

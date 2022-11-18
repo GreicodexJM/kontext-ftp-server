@@ -1,5 +1,55 @@
 #!/bin/sh
 
+set_env_default() {
+  if [ -z "${$1}" ]; then
+    $1=$2
+  fi
+  sed -i -e "s/users.$2\s*=\s*$2/users.$2 = $1/g" /etc/pam_mysql.conf 
+}
+
+## Set Environment Variables for Database access
+if [ -z "$DB_HOST" ]; then
+  DB_HOST=database
+fi
+sed -i -e "s/users.host\s*=\s*database/users.host = $DB_HOST/g" /etc/pam_mysql.conf 
+
+if [ -z "$DB_NAME" ]; then
+  DB_NAME=ftp_users
+fi
+sed -i -e "s/users.database\s*=\s*database/users.database = $DB_NAME/g" /etc/pam_mysql.conf 
+
+if [ -z "$DB_USER" ]; then
+  DB_USER=db_username
+fi
+sed -i -e "s/users.db_user\s*=\s*database/users.db_user = $DB_USER/g" /etc/pam_mysql.conf 
+
+if [ -z "$DB_PASSWD" ]; then
+  DB_PASSWD=db_password
+fi
+sed -i -e "s/users.db_passwd\s*=\s*database/users.db_passwd = $DB_PASSWD/g" /etc/pam_mysql.conf 
+
+SITE=${SITE:-ftp.greicodex.com}
+S3_BUCKET=${S3_BUCKET:-fake_s3}
+S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID:-s3_accessid}
+S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-s3_accesskey}
+
+
+function db_addgroup () {
+  echo "Add Group $@"
+}
+
+function db_adduser () {
+  echo "Add User $@"
+}
+
+function setup_folder () {
+  FOLDER=$1
+  NAME=$2
+  GROUP=$3
+  echo "mkdir -p $FOLDER"
+  echo "chown $NAME:$GROUP $FOLDER"
+}
+
 #Remove all ftp users
 grep '/ftp/' /etc/passwd | cut -d':' -f1 | xargs -r -n1 deluser
 
@@ -44,33 +94,42 @@ for i in $USERS ; do
       GROUP_OPT="-G $GROUP"
     elif [ ! -z "$GID" ]; then
       # Group don't exist but GID supplied
-      addgroup -g $GID $NAME
+      db_addgroup -g $GID $NAME
+      
       GROUP_OPT="-G $NAME"
     fi
   fi
 
-  echo -e "$PASS\n$PASS" | adduser -h $FOLDER -s /sbin/nologin $UID_OPT $GROUP_OPT $NAME
-  mkdir -p $FOLDER
-  chown $NAME:$GROUP $FOLDER
+  echo -e "$PASS\n$PASS" | db_adduser -h $FOLDER -s /sbin/nologin $UID_OPT $GROUP_OPT $NAME
+  setup_folder $FOLDER $NAME $GROUP
   unset NAME PASS FOLDER UID GID
 done
-
 
 if [ -z "$MIN_PORT" ]; then
   MIN_PORT=21000
 fi
+export MIN_PORT
 
 if [ -z "$MAX_PORT" ]; then
   MAX_PORT=21010
 fi
+export MAX_PORT
 
 if [ ! -z "$ADDRESS" ]; then
   ADDR_OPT="-opasv_address=$ADDRESS"
 fi
+export ADDR_OPT
 
 if [ ! -z "$TLS_CERT" ] || [ ! -z "$TLS_KEY" ]; then
   TLS_OPT="-orsa_cert_file=$TLS_CERT -orsa_private_key_file=$TLS_KEY -ossl_enable=YES -oallow_anon_ssl=NO -oforce_local_data_ssl=YES -oforce_local_logins_ssl=YES -ossl_tlsv1=YES -ossl_sslv2=NO -ossl_sslv3=NO -ossl_ciphers=HIGH"
 fi
+export TLS_OPT
+
+#modprobe fuse
+
+echo $S3_ACCESS_KEY_ID:$S3_SECRET_ACCESS_KEY > /etc/passwd-s3fs
+chmod 600 /etc/passwd-s3fs
+s3fs $S3_BUCKET /ftp/ftp -o passwd_file=/etc/passwd-s3fs -o dbglevel=info -f -o curldbg -o nonempty -o url=$S3_URL
 
 # Used to run custom commands inside container
 if [ ! -z "$1" ]; then
