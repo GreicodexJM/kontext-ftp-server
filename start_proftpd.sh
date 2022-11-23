@@ -32,26 +32,31 @@ wait_for() {
   return $WAITFORIT_result
 }
 
+create_passwd() {
+  /bin/echo "{md5}"`/bin/echo -n "password" | openssl dgst -binary -md5 | openssl enc -base64`
+}
+
 ## Set Environment Variables for Database access
 if [ -z "$DB_HOST" ]; then
   DB_HOST=database
 fi
-sed -i -e "s/users.host\s*=\s*database/users.host = $DB_HOST/g" /etc/pam_mysql.conf 
-
 if [ -z "$DB_NAME" ]; then
   DB_NAME=ftp_users
 fi
-sed -i -e "s/users.database\s*=\s*database/users.database = $DB_NAME/g" /etc/pam_mysql.conf 
-
 if [ -z "$DB_USER" ]; then
   DB_USER=db_username
 fi
-sed -i -e "s/users.db_user\s*=\s*database/users.db_user = $DB_USER/g" /etc/pam_mysql.conf 
-
 if [ -z "$DB_PASSWD" ]; then
   DB_PASSWD=db_password
 fi
-sed -i -e "s/users.db_passwd\s*=\s*database/users.db_passwd = $DB_PASSWD/g" /etc/pam_mysql.conf 
+sed -i \
+    -e "s:{{dbhost}}:$DB_HOST:" \
+    -e "s:{{database}}:$DB_NAME:" \
+    -e "s:{{3306}}:3306:" \
+    -e "s:{{mysql_user}}:$DB_USER:" \
+    -e "s:{{mysql_password}}:$DB_PASSWD:" \
+    /etc/proftpd/conf.d/mod_sql.conf
+
 
 SITE=${SITE:-ftp.greicodex.com}
 S3_BUCKET=${S3_BUCKET:-fake_s3}
@@ -160,13 +165,52 @@ echo $S3_ACCESS_KEY_ID:$S3_SECRET_ACCESS_KEY > /etc/passwd-s3fs
 chmod 600 /etc/passwd-s3fs
 $( s3fs $S3_BUCKET /ftp/ftp -o passwd_file=/etc/passwd-s3fs -o dbglevel=info -o curldbg -o nonempty -o url=$S3_URL -o use_path_request_style )
 
+
+if [ ! -f /etc/timezone ] && [ ! -z "$TZ" ]; then
+  # At first startup, set timezone
+  cp /usr/share/zoneinfo/$TZ /etc/localtime
+  echo $TZ >/etc/timezone
+fi
+
+if [ -z "$PASV_ADDRESS" ]; then
+  echo "** This container will not run without setting for PASV_ADDRESS **"
+  sleep 10
+  exit 1
+fi
+
+# if [ -e /run/secrets/$FTPUSER_PASSWORD_SECRET ] && ! id -u "$FTPUSER_NAME"; then
+#  adduser -u $FTPUSER_UID -s /bin/sh -g "ftp user" -D $FTPUSER_NAME
+#  echo "$FTPUSER_NAME:$(cat /run/secrets/$FTPUSER_PASSWORD_SECRET)" \
+#    | chpasswd -e
+#fi
+
+mkdir -p /run/proftpd && chown proftpd /run/proftpd/
+
+sed -i \
+    -e "s:{{ ALLOW_OVERWRITE }}:$ALLOW_OVERWRITE:" \
+    -e "s:{{ ANONYMOUS_DISABLE }}:$ANONYMOUS_DISABLE:" \
+    -e "s:{{ ANON_UPLOAD_ENABLE }}:$ANON_UPLOAD_ENABLE:" \
+    -e "s:{{ LOCAL_UMASK }}:$LOCAL_UMASK:" \
+    -e "s:{{ MAX_CLIENTS }}:$MAX_CLIENTS:" \
+    -e "s:{{ MAX_INSTANCES }}:$MAX_INSTANCES:" \
+    -e "s:{{ PASV_ADDRESS }}:$PASV_ADDRESS:" \
+    -e "s:{{ PASV_MAX_PORT }}:$PASV_MAX_PORT:" \
+    -e "s:{{ PASV_MIN_PORT }}:$PASV_MIN_PORT:" \
+    -e "s+{{ SERVER_NAME }}+$SERVER_NAME+" \
+    -e "s:{{ TIMES_GMT }}:$TIMES_GMT:" \
+    -e "s:{{ WRITE_ENABLE }}:$WRITE_ENABLE:" \
+    /etc/proftpd/proftpd.conf
+
+exec proftpd --nodaemon -c /etc/proftpd/proftpd.conf
+
+
 # Used to run custom commands inside container
 if [ ! -z "$1" ]; then
   exec "$@"
 else
-  echo "Starting VSFTPD..."
-  vsftpd -opasv_min_port=$MIN_PORT -opasv_max_port=$MAX_PORT $ADDR_OPT $TLS_OPT /etc/vsftpd/vsftpd.conf
-  [ -d /var/run/vsftpd ] || mkdir /var/run/vsftpd
-  pgrep vsftpd | tail -n 1 > /var/run/vsftpd/vsftpd.pid
-  exec pidproxy /var/run/vsftpd/vsftpd.pid true
+  echo "Starting ProFTPD..."
+  proftpd -n -c /etc/proftpd/proftpd.conf
+  [ -d /var/run/proftpd ] || mkdir /var/run/proftpd
+  pgrep proftpd | tail -n 1 > /var/run/proftpd/proftpd.pid
+  exec pidproxy /var/run/proftpd/proftpd.pid true
 fi

@@ -19,6 +19,7 @@ services:
       - DB_PASSWD=${FTP_DB_PASSWD:-db_password}
       - DB_NAME=${FTP_DB_NAME:-ftpserver}
       - DB_HOST=database
+      - PASV_ADDRESS=127.0.0.1
     cap_add:
       - SYS_ADMIN
     devices:
@@ -51,5 +52,5 @@ services:
       - MYSQL_USER=${FTP_DB_USER:-db_username}
       - MYSQL_PASSWORD=${FTP_DB_PASSWD:-db_password}
     volumes:
-      - ./pam-mysql/users.sql:/docker-entrypoint-initdb.d/01_users.sql
-      - ./pam-mysql/log.sql:/docker-entrypoint-initdb.d/02_log.sql
+      - ./ftp_sql/users.sql:/docker-entrypoint-initdb.d/01_users.sql
+      - ./ftp_sql/log.sql:/docker-entrypoint-initdb.d/02_log.sql
