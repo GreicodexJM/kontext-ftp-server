@@ -55,11 +55,13 @@ COPY vsftpd.conf /etc/vsftpd/vsftpd.conf
 COPY pam-mysql/pam_mysql.conf /etc/pam_mysql.conf
 COPY pam-mysql/pamd.conf /tmp/pamd.conf
 COPY mime.types /etc/mime.types
-RUN cat /tmp/pamd.conf >> /etc/pam.d/password-auth
-RUN cat /tmp/pamd.conf >> /etc/pam.d/system-auth
+RUN cat /tmp/pamd.conf >> /etc/pam.d/vsftpd
+#password-auth
+#RUN cat /tmp/pamd.conf >> /etc/pam.d/system-auth
 RUN rm /tmp/pamd.conf
-
-
+#RUN adduser -h /ftp/ftp -g nogroup -s /bin/false vsftpd
+#RUN mkdir -p /ftp/ftp/user1
+#RUN chown vsftpd:nogroup /ftp/ftp/user1
 EXPOSE 21 21000-21010
 VOLUME /ftp/ftp
 

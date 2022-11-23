@@ -7,6 +7,31 @@ set_env_default() {
   sed -i -e "s/users.$2\s*=\s*$2/users.$2 = $1/g" /etc/pam_mysql.conf 
 }
 
+wait_for() {
+  WAITFORIT_cmdname=$0
+  WAITFORIT_HOST=$1
+  WAITFORIT_PORT=$2
+  WAITFORIT_start_ts=$(date +%s)
+  WAITFORIT_ISBUSY=1
+  while :
+  do
+      if [[ $WAITFORIT_ISBUSY -eq 1 ]]; then
+          nc -z $WAITFORIT_HOST $WAITFORIT_PORT
+          WAITFORIT_result=$?
+      else
+          (echo -n > /dev/tcp/$WAITFORIT_HOST/$WAITFORIT_PORT) >/dev/null 2>&1
+          WAITFORIT_result=$?
+      fi
+      if [[ $WAITFORIT_result -eq 0 ]]; then
+          WAITFORIT_end_ts=$(date +%s)
+          echo "$WAITFORIT_cmdname: $WAITFORIT_HOST:$WAITFORIT_PORT is available after $((WAITFORIT_end_ts - WAITFORIT_start_ts)) seconds"
+          break
+      fi
+      sleep 1
+  done
+  return $WAITFORIT_result
+}
+
 ## Set Environment Variables for Database access
 if [ -z "$DB_HOST" ]; then
   DB_HOST=database
@@ -80,7 +105,7 @@ for i in $USERS ; do
   GID=$(echo $i | cut -d'|' -f5)
 
   if [ -z "$FOLDER" ]; then
-    FOLDER="/ftp/$NAME"
+    FOLDER="/ftp/ftp/$NAME"
   fi
 
   if [ ! -z "$UID" ]; then
@@ -127,9 +152,13 @@ export TLS_OPT
 
 #modprobe fuse
 
+wait_for storage 4566
+sleep 10
+
+
 echo $S3_ACCESS_KEY_ID:$S3_SECRET_ACCESS_KEY > /etc/passwd-s3fs
 chmod 600 /etc/passwd-s3fs
-s3fs $S3_BUCKET /ftp/ftp -o passwd_file=/etc/passwd-s3fs -o dbglevel=info -f -o curldbg -o nonempty -o url=$S3_URL
+s3fs $S3_BUCKET /ftp/ftp -o passwd_file=/etc/passwd-s3fs -o dbglevel=info -f -o curldbg -o nonempty -o url=$S3_URL -o use_path_request_style
 
 # Used to run custom commands inside container
 if [ ! -z "$1" ]; then
