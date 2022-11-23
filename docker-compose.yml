@@ -7,6 +7,9 @@ services:
     depends_on:
       - database
       - storage
+    ports:
+      - 2121:21
+      - 21000-22000:21000-22000
     expose:
       - 2121
     environment:
