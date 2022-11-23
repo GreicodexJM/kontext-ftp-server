@@ -158,12 +158,13 @@ sleep 10
 
 echo $S3_ACCESS_KEY_ID:$S3_SECRET_ACCESS_KEY > /etc/passwd-s3fs
 chmod 600 /etc/passwd-s3fs
-s3fs $S3_BUCKET /ftp/ftp -o passwd_file=/etc/passwd-s3fs -o dbglevel=info -f -o curldbg -o nonempty -o url=$S3_URL -o use_path_request_style
+$( s3fs $S3_BUCKET /ftp/ftp -o passwd_file=/etc/passwd-s3fs -o dbglevel=info -o curldbg -o nonempty -o url=$S3_URL -o use_path_request_style )
 
 # Used to run custom commands inside container
 if [ ! -z "$1" ]; then
   exec "$@"
 else
+  echo "Starting VSFTPD..."
   vsftpd -opasv_min_port=$MIN_PORT -opasv_max_port=$MAX_PORT $ADDR_OPT $TLS_OPT /etc/vsftpd/vsftpd.conf
   [ -d /var/run/vsftpd ] || mkdir /var/run/vsftpd
   pgrep vsftpd | tail -n 1 > /var/run/vsftpd/vsftpd.pid

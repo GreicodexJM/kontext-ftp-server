@@ -9,18 +9,15 @@ services:
       - storage
     ports:
       - 2121:21
-      - 21000-22000:21000-22000
-    expose:
-      - 2121
     environment:
       - SITE=ftp.greicodex.com
-      - S3_BUCKET=fakes3data
-      - S3_ACCESS_KEY_ID=s3_accessid
-      - S3_SECRET_ACCESS_KEY=s3_accesskey
+      - S3_BUCKET=${FTP_S3_BUCKET:-fakes3data}
+      - S3_ACCESS_KEY_ID=${FTP_S3_ACCESSID:-s3_accessid}
+      - S3_SECRET_ACCESS_KEY=${FTP_S3_ACCESSKEY:-s3_accesskey}
       - S3_URL=http://storage:4566
-      - DB_USER=db_username
-      - DB_PASSWD=db_password
-      - DB_NAME=ftpserver
+      - DB_USER=${FTP_DB_USER:-db_username}
+      - DB_PASSWD=${FTP_DB_PASSWD:-db_password}
+      - DB_NAME=${FTP_DB_NAME:-ftpserver}
       - DB_HOST=database
     cap_add:
       - SYS_ADMIN
@@ -31,14 +28,13 @@ services:
     image: localstack/localstack
     container_name: s3_service
     ports:
-      - "8000:8000"
       - "4566:4566"
       - "4510-4559:4510-4559"
     environment:
       - SERVICES=s3
       - DEBUG=1
       - PERSISTENCE=1
-      - S3_BUCKET=fakes3data
+      - S3_BUCKET=${FTP_S3_BUCKET:-fakes3data}
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-./localstack}:/var/lib/localstack"
       - ./aws:/docker-entrypoint-initaws.d
@@ -47,11 +43,13 @@ services:
   database:
     image: mariadb
     container_name: db_service
+    ports:
+      - 8306:3306
     environment:
       - MYSQL_ROOT_PASSWORD=toor
-      - MYSQL_DATABASE=ftpserver
-      - MYSQL_USER=db_username
-      - MYSQL_PASSWORD=db_password
+      - MYSQL_DATABASE=${FTP_DB_NAME:-ftpserver}
+      - MYSQL_USER=${FTP_DB_USER:-db_username}
+      - MYSQL_PASSWORD=${FTP_DB_PASSWD:-db_password}
     volumes:
       - ./pam-mysql/users.sql:/docker-entrypoint-initdb.d/01_users.sql
       - ./pam-mysql/log.sql:/docker-entrypoint-initdb.d/02_log.sql
