@@ -9,27 +9,30 @@ services:
       - storage
     ports:
       - 2121:21
+      - "${FTP_PASV_MIN_PORT:-30091}-${FTP_PASV_MAX_PORT:-30100}:${FTP_PASV_MIN_PORT:-30091}-${FTP_PASV_MAX_PORT:-30100}"
     environment:
-      - SITE=ftp.greicodex.com
+      - SITE=${FTP_SITE_DNS:-ftp.greicodex.com}
       - S3_BUCKET=${FTP_S3_BUCKET:-fakes3data}
       - S3_ACCESS_KEY_ID=${FTP_S3_ACCESSID:-s3_accessid}
       - S3_SECRET_ACCESS_KEY=${FTP_S3_ACCESSKEY:-s3_accesskey}
-      - S3_URL=http://storage:4566
+      - S3_URL=${FTP_S3_URL:-http://storage:4566/}
       - DB_USER=${FTP_DB_USER:-db_username}
       - DB_PASSWD=${FTP_DB_PASSWD:-db_password}
       - DB_NAME=${FTP_DB_NAME:-ftpserver}
-      - DB_HOST=database
-      - PASV_ADDRESS=127.0.0.1
+      - DB_HOST=${FTP_DB_HOST:-database}
+      - PASV_ADDRESS=${FTP_ADDRESS:-127.0.0.1}
+      - PASV_MIN_PORT=${FTP_PASV_MIN_PORT:-30091}
+      - PASV_MAX_PORT=${FTP_PASV_MAX_PORT:-30100}
     cap_add:
       - SYS_ADMIN
     devices:
       - /dev/fuse
 
   storage:
-    image: localstack/localstack
+    image: fingershock/fakes3
     container_name: s3_service
     ports:
-      - "4566:4566"
+      - "4566:8000"
       - "4510-4559:4510-4559"
     environment:
       - SERVICES=s3
@@ -40,6 +43,7 @@ services:
       - "${LOCALSTACK_VOLUME_DIR:-./localstack}:/var/lib/localstack"
       - ./aws:/docker-entrypoint-initaws.d
       - /var/run/docker.sock:/var/run/docker.sock
+#    command: sed -i -e "s:path_info.lstrip('/'):path_info.lstrip('/').replace('//','/'):g" /opt/code/localstack/.venv/lib/python3.10/site-packages/werkzeug/routing.py
 
   database:
     image: mariadb

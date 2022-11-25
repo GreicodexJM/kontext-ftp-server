@@ -13,6 +13,7 @@ wait_for() {
   WAITFORIT_PORT=$2
   WAITFORIT_start_ts=$(date +%s)
   WAITFORIT_ISBUSY=1
+  WAITFORIT_maxcount=3
   while :
   do
       if [[ $WAITFORIT_ISBUSY -eq 1 ]]; then
@@ -27,13 +28,18 @@ wait_for() {
           echo "$WAITFORIT_cmdname: $WAITFORIT_HOST:$WAITFORIT_PORT is available after $((WAITFORIT_end_ts - WAITFORIT_start_ts)) seconds"
           break
       fi
+      if [[ $WAITFORIT_maxcount -eq 0 ]]; then
+        echo "$WAITFORIT_cmdname: $WAITFORIT_HOST:$WAITFORIT_PORT time out"
+        break
+      fi  
       sleep 1
+      let WAITFORIT_maxcount=WAITFORIT_maxcount-1
   done
   return $WAITFORIT_result
 }
 
 create_passwd() {
-  /bin/echo "{md5}"`/bin/echo -n "password" | openssl dgst -binary -md5 | openssl enc -base64`
+  /bin/echo "{md5}"`/bin/echo -n "$1" | openssl dgst -binary -md5 | openssl enc -base64`
 }
 
 ## Set Environment Variables for Database access
@@ -66,10 +72,13 @@ S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-s3_accesskey}
 
 function db_addgroup () {
   echo "Add Group $@"
+#  echo "INSERT INTO `ftpgroup` (groupname) VALUES ('$1');" | mysql -u$DB_USER -p$DB_PASSWD -h$DB_HOST $DB_NAME
 }
 
 function db_adduser () {
   echo "Add User $@"
+  $user_passw=$( create_passwd $2 ) 
+#  echo "INSERT INTO `ftpuser` (groupname) VALUES ('$1');" | mysql -u$DB_USER -p$DB_PASSWD -h$DB_HOST $DB_NAME
 }
 
 function setup_folder () {
@@ -81,59 +90,8 @@ function setup_folder () {
 }
 
 #Remove all ftp users
-grep '/ftp/' /etc/passwd | cut -d':' -f1 | xargs -r -n1 deluser
+grep '/data/' /etc/passwd | cut -d':' -f1 | xargs -r -n1 deluser
 
-#Create users
-#USERS='name1|password1|[folder1][|uid1][|gid1] name2|password2|[folder2][|uid2][|gid2]'
-#may be:
-# user|password foo|bar|/home/foo
-#OR
-# user|password|/home/user/dir|10000
-#OR
-# user|password|/home/user/dir|10000|10000
-#OR
-# user|password||10000|82
-
-#Default user 'ftp' with password 'alpineftp'
-
-if [ -z "$USERS" ]; then
-  USERS="alpineftp|alpineftp"
-fi
-
-for i in $USERS ; do
-  NAME=$(echo $i | cut -d'|' -f1)
-  GROUP=$NAME
-  PASS=$(echo $i | cut -d'|' -f2)
-  FOLDER=$(echo $i | cut -d'|' -f3)
-  UID=$(echo $i | cut -d'|' -f4)
-  # Add group handling
-  GID=$(echo $i | cut -d'|' -f5)
-
-  if [ -z "$FOLDER" ]; then
-    FOLDER="/ftp/ftp/$NAME"
-  fi
-
-  if [ ! -z "$UID" ]; then
-    UID_OPT="-u $UID"
-    if [ -z "$GID" ]; then
-      GID=$UID
-    fi
-    #Check if the group with the same ID already exists
-    GROUP=$(getent group $GID | cut -d: -f1)
-    if [ ! -z "$GROUP" ]; then
-      GROUP_OPT="-G $GROUP"
-    elif [ ! -z "$GID" ]; then
-      # Group don't exist but GID supplied
-      db_addgroup -g $GID $NAME
-      
-      GROUP_OPT="-G $NAME"
-    fi
-  fi
-
-  echo -e "$PASS\n$PASS" | db_adduser -h $FOLDER -s /sbin/nologin $UID_OPT $GROUP_OPT $NAME
-  setup_folder $FOLDER $NAME $GROUP
-  unset NAME PASS FOLDER UID GID
-done
 
 if [ -z "$MIN_PORT" ]; then
   MIN_PORT=21000
@@ -163,7 +121,69 @@ sleep 10
 
 echo $S3_ACCESS_KEY_ID:$S3_SECRET_ACCESS_KEY > /etc/passwd-s3fs
 chmod 600 /etc/passwd-s3fs
-$( s3fs $S3_BUCKET /ftp/ftp -o passwd_file=/etc/passwd-s3fs -o dbglevel=info -o curldbg -o nonempty -o url=$S3_URL -o use_path_request_style )
+S3FS_OPT="-o passwd_file=/etc/passwd-s3fs -o nonempty -o url=$S3_URL -o umask=0000,uid=100,gid=65533 -o enable_content_md5 -o allow_other -o rw -o nosuid -o nodev -o use_rrs -o use_cache=/tmp"
+#S3FS_OPT="-o passwd_file=/etc/passwd-s3fs -o nonempty -o url=$S3_URL -o umask=0000,uid=0,gid=0 -o enable_content_md5 -o allow_other -o rw -o nosuid -o nodev -o use_rrs -o use_cache=/tmp"
+if [ ! -z "$S3FS_DEBUG" ]; then
+  S3FS_OPT+=" -o dbglevel=info -o curldbg "
+fi
+if [ ! -z "$S3FS_LEGACY" ]; then
+  S3FS_OPT+=" -o compat_dir -o use_path_request_style "
+fi
+s3fs $S3_BUCKET /data/ftp -d $S3FS_OPT
+# chown proftpd:proftpd -R /data
+
+#Create users
+#USERS='name1|password1|[folder1][|uid1][|gid1] name2|password2|[folder2][|uid2][|gid2]'
+#may be:
+# user|password foo|bar|/home/foo
+#OR
+# user|password|/home/user/dir|10000
+#OR
+# user|password|/home/user/dir|10000|10000
+#OR
+# user|password||10000|82
+
+#Default user 'ftp' with password 'alpineftp'
+
+if [ -z "$USERS" ]; then
+  USERS="alpineftp|alpineftp"
+fi
+
+for i in $USERS ; do
+  NAME=$(echo $i | cut -d'|' -f1)
+  GROUP=$NAME
+  PASS=$(echo $i | cut -d'|' -f2)
+  FOLDER=$(echo $i | cut -d'|' -f3)
+  UID=$(echo $i | cut -d'|' -f4)
+  # Add group handling
+  GID=$(echo $i | cut -d'|' -f5)
+
+  if [ -z "$FOLDER" ]; then
+    FOLDER="/data/ftp/$NAME"
+  fi
+
+  if [ ! -z "$UID" ]; then
+    UID_OPT="-u $UID"
+    if [ -z "$GID" ]; then
+      GID=$UID
+    fi
+    #Check if the group with the same ID already exists
+    GROUP=$(getent group $GID | cut -d: -f1)
+    if [ ! -z "$GROUP" ]; then
+      GROUP_OPT="-G $GROUP"
+    elif [ ! -z "$GID" ]; then
+      # Group don't exist but GID supplied
+      db_addgroup -g $GID $NAME
+      
+      GROUP_OPT="-G $NAME"
+    fi
+  fi
+
+  echo -e "$PASS\n$PASS" | db_adduser -h $FOLDER -s /sbin/nologin $UID_OPT $GROUP_OPT $NAME
+  setup_folder $FOLDER $NAME $GROUP
+  unset NAME PASS FOLDER UID GID
+done
+
 
 
 if [ ! -f /etc/timezone ] && [ ! -z "$TZ" ]; then

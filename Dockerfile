@@ -41,7 +41,7 @@ ENV ALLOW_OVERWRITE=on \
     FTPUSER_PASSWORD_SECRET=ftp-user-password-secret \
     FTPUSER_NAME=ftpuser \
     FTPUSER_UID=1001 \
-    LOCAL_UMASK=022 \
+    LOCAL_UMASK=0277 \
     MAX_CLIENTS=10 \
     MAX_INSTANCES=30 \
     PASV_ADDRESS= \
@@ -55,7 +55,7 @@ ENV ALLOW_OVERWRITE=on \
 RUN apk update && apk add mariadb-connector-c mariadb-client libxml2 fuse curl libstdc++ util-linux sshfs
 COPY --from=pidproxy /usr/bin/pidproxy /usr/bin/pidproxy
 COPY --from=s3-fuse /usr/local/bin/s3fs /usr/bin/s3fs
-RUN apk --no-cache add proftpd proftpd-mod_sql proftpd-mod_sftp_sql proftpd-mod_sql_mysql tini 
+RUN apk --no-cache add proftpd proftpd-mod_sql proftpd-mod_sftp_sql proftpd-mod_sql_mysql tini sudo
 
 COPY proftpd.conf /etc/proftpd/proftpd.conf
 RUN chmod 644 /etc/proftpd/proftpd.conf
@@ -63,10 +63,10 @@ COPY ftp_sql/mod_sql.conf /etc/proftpd/conf.d/mod_sql.conf
 RUN chmod 644 /etc/proftpd/conf.d/mod_sql.conf
 COPY mime.types /etc/mime.types
 #RUN adduser -h /ftp/ftp -g nogroup -s /bin/false vsftpd
-#RUN mkdir -p /ftp/ftp/user1
-#RUN chown vsftpd:nogroup /ftp/ftp/user1
+RUN mkdir -p /data
+RUN chown proftpd:nogroup /data
 EXPOSE 21 $PASV_MIN_PORT-$PASV_MAX_PORT
-VOLUME /ftp/ftp
+VOLUME /data/ftp
 
 COPY start_proftpd.sh /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
