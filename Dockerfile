@@ -69,6 +69,6 @@ EXPOSE 21 $PASV_MIN_PORT-$PASV_MAX_PORT
 VOLUME /data/ftp
 
 COPY start_proftpd.sh /usr/local/bin/entrypoint.sh
+COPY sync_ftpusers.sh /etc/periodic/15min/sync_ftpusers.sh
+RUN chmod +x /etc/periodic/15min/sync_ftpusers.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-# ENTRYPOINT ["/sbin/tini", "--", "/bin/start_proftpd.sh"]

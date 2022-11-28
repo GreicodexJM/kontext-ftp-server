@@ -20,6 +20,7 @@ services:
       - DB_PASSWD=${FTP_DB_PASSWD:-db_password}
       - DB_NAME=${FTP_DB_NAME:-ftpserver}
       - DB_HOST=${FTP_DB_HOST:-database}
+      - DB_PORT=${FTP_DB_PORT:-3306}
       - PASV_ADDRESS=${FTP_ADDRESS:-127.0.0.1}
       - PASV_MIN_PORT=${FTP_PASV_MIN_PORT:-30091}
       - PASV_MAX_PORT=${FTP_PASV_MAX_PORT:-30100}
@@ -29,10 +30,10 @@ services:
       - /dev/fuse
 
   storage:
-    image: fingershock/fakes3
+    image: localstack/localstack
     container_name: s3_service
     ports:
-      - "4566:8000"
+      - "4566:4566"
       - "4510-4559:4510-4559"
     environment:
       - SERVICES=s3
@@ -49,7 +50,7 @@ services:
     image: mariadb
     container_name: db_service
     ports:
-      - 8306:3306
+      - 8306:${FTP_DB_PORT:-3306}
     environment:
       - MYSQL_ROOT_PASSWORD=toor
       - MYSQL_DATABASE=${FTP_DB_NAME:-ftpserver}

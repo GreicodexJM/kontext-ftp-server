@@ -13,7 +13,7 @@ wait_for() {
   WAITFORIT_PORT=$2
   WAITFORIT_start_ts=$(date +%s)
   WAITFORIT_ISBUSY=1
-  WAITFORIT_maxcount=3
+  WAITFORIT_maxcount=10
   while :
   do
       if [[ $WAITFORIT_ISBUSY -eq 1 ]]; then
