@@ -77,7 +77,7 @@ function db_addgroup () {
 
 function db_adduser () {
   echo "Add User $@"
-  $user_passw=$( create_passwd $2 ) 
+  # $user_passw=$( create_passwd $2 ) 
 #  echo "INSERT INTO `ftpuser` (groupname) VALUES ('$1');" | mysql -u$DB_USER -p$DB_PASSWD -h$DB_HOST $DB_NAME
 }
 
@@ -129,8 +129,13 @@ fi
 if [ ! -z "$S3FS_LEGACY" ]; then
   S3FS_OPT+=" -o compat_dir -o use_path_request_style "
 fi
+
+#Start S3Fs
 s3fs $S3_BUCKET /data/ftp -d $S3FS_OPT
-# chown proftpd:proftpd -R /data
+
+#Start Cron Daemon
+crond
+
 
 #Create users
 #USERS='name1|password1|[folder1][|uid1][|gid1] name2|password2|[folder2][|uid2][|gid2]'
@@ -184,7 +189,8 @@ for i in $USERS ; do
   unset NAME PASS FOLDER UID GID
 done
 
-
+# Run the userpass creation
+/etc/periodic/15min/sync_ftpusers.sh
 
 if [ ! -f /etc/timezone ] && [ ! -z "$TZ" ]; then
   # At first startup, set timezone

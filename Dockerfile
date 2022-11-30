@@ -55,16 +55,20 @@ ENV ALLOW_OVERWRITE=on \
 RUN apk update && apk add mariadb-connector-c mariadb-client libxml2 fuse curl libstdc++ util-linux sshfs
 COPY --from=pidproxy /usr/bin/pidproxy /usr/bin/pidproxy
 COPY --from=s3-fuse /usr/local/bin/s3fs /usr/bin/s3fs
-RUN apk --no-cache add proftpd proftpd-mod_sql proftpd-mod_sftp_sql proftpd-mod_sql_mysql tini sudo
+RUN apk --no-cache add proftpd proftpd-mod_sql proftpd-mod_sftp_sql proftpd-mod_tls proftpd-mod_sql_mysql proftpd-mod_sql_passwd proftpd-mod_sftp_pam tini sudo
 
 COPY proftpd.conf /etc/proftpd/proftpd.conf
 RUN chmod 644 /etc/proftpd/proftpd.conf
 COPY ftp_sql/mod_sql.conf /etc/proftpd/conf.d/mod_sql.conf
+COPY ftp_sql/mod_sftpd.conf /etc/proftpd/conf.d/mod_sftpd.conf
 RUN chmod 644 /etc/proftpd/conf.d/mod_sql.conf
+RUN chmod 644 /etc/proftpd/conf.d/mod_sftpd.conf
 COPY mime.types /etc/mime.types
 #RUN adduser -h /ftp/ftp -g nogroup -s /bin/false vsftpd
 RUN mkdir -p /data
 RUN chown proftpd:nogroup /data
+RUN ssh-keygen -q -N "" -t dsa -f /etc/ssh_host_dsa_key
+RUN ssh-keygen -q -N "" -t rsa -b 4096 -f /etc/ssh_host_rsa_key
 EXPOSE 21 $PASV_MIN_PORT-$PASV_MAX_PORT
 VOLUME /data/ftp
 

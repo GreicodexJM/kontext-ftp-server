@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS `ftpuser` (
     `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
     `userid` VARCHAR(32) COLLATE UTF8_GENERAL_CI NOT NULL DEFAULT '',
     `passwd` VARCHAR(32) COLLATE UTF8_GENERAL_CI NOT NULL DEFAULT '',
+    `user_key` VARCHAR(8192) NOT NULL DEFAULT '',
     `uid` SMALLINT(6) NOT NULL DEFAULT '5500',
     `gid` SMALLINT(6) NOT NULL DEFAULT '5500',
     `homedir` VARCHAR(255) COLLATE UTF8_GENERAL_CI NOT NULL DEFAULT '',
@@ -34,7 +35,7 @@ CREATE TABLE IF NOT EXISTS `ftpuser` (
    COMMENT='ProFTP user table';
 CREATE INDEX ftpusers_userid_idx ON ftpuser (userid);
 
-/**
+/**s
 Group Information Table
 
 Column 	Type 	Required? 	Null? 	Purpose
@@ -53,3 +54,10 @@ CREATE TABLE IF NOT EXISTS `ftpgroup` (
     ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci 
     COMMENT='ProFTP group table'; 
 CREATE INDEX ftpgroups_gid_idx ON ftpgroup (gid);
+
+
+CREATE TABLE sftphostkeys (
+  host VARCHAR(256) NOT NULL,
+  host_key VARCHAR(8192) NOT NULL
+);
+CREATE INDEX sftphostkeys_idx ON sftphostkeys (host);

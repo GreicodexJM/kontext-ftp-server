@@ -9,6 +9,7 @@ services:
       - storage
     ports:
       - 2121:21
+      - 2222:22
       - "${FTP_PASV_MIN_PORT:-30091}-${FTP_PASV_MAX_PORT:-30100}:${FTP_PASV_MIN_PORT:-30091}-${FTP_PASV_MAX_PORT:-30100}"
     environment:
       - SITE=${FTP_SITE_DNS:-ftp.greicodex.com}
