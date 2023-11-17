@@ -1,2 +1,3 @@
-localstack
-.env
+# compilation output
+sftpgo
+sftpgo.exe
