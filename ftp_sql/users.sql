@@ -49,7 +49,7 @@ from the uid column description). To create a group table:
 CREATE TABLE IF NOT EXISTS `ftpgroup` ( 
      `groupname` varchar(16) COLLATE utf8_general_ci NOT NULL,
      `gid` smallint(6) NOT NULL DEFAULT '5500', 
-     `members` varchar(16) COLLATE utf8_general_ci NOT NULL, 
+     `members` varchar(1024) COLLATE utf8_general_ci NOT NULL, 
      KEY `groupname` (`groupname`) ) 
     ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci 
     COMMENT='ProFTP group table'; 
@@ -61,3 +61,12 @@ CREATE TABLE sftphostkeys (
   host_key VARCHAR(8192) NOT NULL
 );
 CREATE INDEX sftphostkeys_idx ON sftphostkeys (host);
+
+CREATE TABLE IF NOT EXISTS `ftporg` ( 
+     `orgname` varchar(16) COLLATE utf8_general_ci NOT NULL,
+     `oid` smallint(6) NOT NULL DEFAULT '5500', 
+     `members` varchar(16) COLLATE utf8_general_ci NOT NULL, 
+     KEY `groupname` (`groupname`) ) 
+    ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci 
+    COMMENT='ProFTP group table'; 
+CREATE INDEX ftpgroups_gid_idx ON ftpgroup (gid);

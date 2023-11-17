@@ -1,0 +1,2 @@
+
+An error occurred (AccessDenied) when calling the AssumeRole operation: User: arn:aws:iam::724451974334:user/javier@greicodex.com is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::0000000000000000:role/greicodex-service-provider-role

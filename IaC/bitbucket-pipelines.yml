@@ -1,0 +1,29 @@
+image: hashicorp/terraform
+pipelines:
+    default:
+        - step:
+              script:
+                  - export TF_VAR_aws_access_key="$AWS_ACCESS_KEY_ID"
+                  - export TF_VAR_aws_secret_key="$AWS_SECRET_ACCESS_KEY"
+                  - export TF_VAR_aws_session_token="$AWS_SESSION_TOKEN"
+                  - export TF_VAR_aws_region="$AWS_REGION"
+                  - export TF_VAR_project="$project"
+                  - export TF_VAR_workspace="$workspace"
+                  - terraform -chdir=./tf_infra init 
+                  - terraform -chdir=./tf_infra validate
+                  - terraform -chdir=./tf_infra plan -var-file=../terraform.tfvars
+    branches:
+        master:
+            - step:
+                  script:
+                      - export TF_VAR_aws_access_key="$AWS_ACCESS_KEY_ID"
+                      - export TF_VAR_aws_secret_key="$AWS_SECRET_ACCESS_KEY"
+                      - export TF_VAR_aws_session_token="$AWS_SESSION_TOKEN"
+                      - export TF_VAR_aws_region="$AWS_REGION"
+                      - export TF_VAR_project="$project"
+                      - export TF_VAR_workspace="$workspace"
+                      - terraform -chdir=./tf_infra init 
+                      - terraform -chdir=./tf_infra validate
+                      - terraform -chdir=./tf_infra plan -var-file=../terraform.tfvars
+                      - terraform -chdir=./tf_infra apply -input=false -auto-approve -var-file=../terraform.tfvars
+        
